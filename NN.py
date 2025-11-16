@@ -37,9 +37,6 @@ def Init_params():
     return W1, b1, W2, b2
 
 
-    
-    
-
 #Activation (index 2) (Rendre le tout "non-linéaire"(ReLu? SoftMax?, Sigmoïde?, initialisation de Z1, Z2... ?? )) :
 def Relu(Z):  #nb: pas mettre Relu(Z1) mais plutôt un nom générique comme Relu(Z), pareil pour softmax.
     ReLu = np.maximum(0.0, Z)
@@ -51,8 +48,6 @@ def Softmax(Z):
      Denominateur = np.sum(np.exp(Z), axis=0, keepdims=True)
      Sm = Numerateur / Denominateur
      return Sm
-
-
 
 
 #Forward Propagation (index 3) (Forward pass, Propagation avant)
@@ -67,7 +62,6 @@ def forward_prop(X, W1, b1, W2, b2):
     return A1, A2, Z1, Z2
 
    
-
 #Fonction de coût (index 4) (Loss function)
 def one_hot(Y): #Categorical Cross-Entropy (toujours utilisé avec Softmax ? ) 
 
@@ -82,16 +76,40 @@ def one_hot(Y): #Categorical Cross-Entropy (toujours utilisé avec Softmax ? )
 
 def compute_loss(Y_one_hot, A2):
 
-    m = A2.shape[1]
+    m = A2.shape[1] #nb: "m" est un tuple, une liste et non un array, donc "A2.shape[1] prendra 100 et non 3 (3, 100)"
     loss = -1 / m * np.sum((Y_one_hot * np.log(A2 +1e-9)))
     return loss
 
 
+#Backward propagation (index 5) (Backward pass, Rétropropagation)
+def backward_prop(A1, A2, Y_one_hot, W1, W2, b1, b2, Z1, X):
+    m = A2.shape[1]
 
-#Backward propagation (Backward pass, Rétropropagation)
-def backward_prop():
+    dZ2 = A2 - Y_one_hot
+    db2 = np.sum(dZ2, axis=1, keepdims=True) / m
+    dW2 = dZ2 @ A1.T / m
+
+    dA1 = W2.T @ dZ2
+    dZ1 = dA1 * (Z1 > 0)
+    db1 = np.sum(dZ1, axis=1, keepdims=True) / m
+    dW1 = dZ1 @ X.T / m
+
+    return dW1, db1, dW2, db2
 
 
+#Update_parameters (Index 6)
+def update_parameters(dW1, db1, dW2, db2, W1, b1, W2, b2, learning_rate): 
+
+    updateW1 = W1 - (learning_rate * dW1)
+    updateW2 = W2 - (learning_rate * dW2)
+
+    updateb1 = b1 - (learning_rate * db1)
+    updateb2 = b2 - (learning_rate * db2)
+
+    return updateW1, updateW2, updateb1, updateb2
+
+
+def gradient_descent():
 
 
     ### INDEX ###
@@ -251,6 +269,79 @@ def backward_prop():
         "return Y_one_hot" : 
         Le tableau est prêt, on le renvoie.
         La fonction renvoie la nouvelle matrice (3, 100) pour qu'on puisse l'utiliser après.
+
+    
+    5:
+        Découvrir qui est responsable de l'erreur finale (le "coût") et comment les corriger.
+        Explication de ma fonction "backward_prop" ligne par ligne.
+        
+        La couche de sortie (couche 2) : 
+
+            "def backward_prop(A1, A2, Y_one_hot, W1, W2, Z1, X)":
+            On rassemble le "dossier", on a besoin de trouver les coupables et pour ça
+            on a besoin de tous les éléments: 
+            A2 (prédiction) et Y_one_hot (vérité) : Pour trouver l'erreur de départ.
+            A1, Z1, X : Les "archives" de ce qui est entré et sorti de chaque machine.
+            W2 : Le "plan" de la machine 2, pour voir comment l'erreur l'a traversée.
+            (Ici W1, b1, b2 sont inutile dans le calcul mais on les passe souvent dans une implémentation par classe).
+
+            "m = A2.shape[1]" : 
+            On compte le nombre de "dossiers" (exemples). On en a besoin pour faire la moyenne des responsabilités à la fin.
+
+            "dZ2 = A2 - Y_one_hot" : 
+            C'est l'équivalent de : "dZ2 = erreur_brute_couche_finale".
+            C'est le point de départ. C'est la combinaison de "Softmax" + l'entropie croisée. Le "rapport d'erreur" (dZ2) est
+            simplement la différence entre la prédiction (A2) et la vérité (Y_one_hot).
+            Par exemple : Si A2 = [0.1, 0.2, 0.7] et Y_one_hot = [0, 0, 1], alors dZ2 = [0.1, 0.2, -0.3]
+            Traduction : Il y a 0.1 de trop dans la classe 0, 0.2 de trop dans la classe 1, et il nous a manqué 0.3 dans la classe 2.
+
+            "db2 = num.sum(dZ2, axis=1, keepdims=True) / m" :
+            C'est l'équivalent de : "db2 = rapport_responsabilité_du_biais_b2".
+            La biais b2 a affecté tous les exemples de la même manière. Pour trouver sa responsabilité, on fait la moyenne de toutes
+            les erreus (dZ2) horizontalement (axis=1, à travers les 100 exemples) pour chacun des 3 neurones.
+            ("keepdimes=True" est crucial. Il garde la forme (3,1)(une "colonne") au lieux de (3, )(une ligne), ce qui est vital pour la maj.)
+
+            "dW2 = dZ2 @ A1.T / m" : 
+            C'est l'équivalent de : "db2 = rapport_responsabilité_des_poids_W2".
+            Ici on "blâme" W2. La responsabilité de W2 est plus complexe, elle dépend de deux choses : 
+            1 : L'erreur qu'il a aidé à produire (dZ2).
+            2 : Le signal qui est entré dans la machine (A1). (Un singal d'entrée A1 fort aura eu plus d'impact sur l'erreur).
+            Le produit matriciel "dZ2 @ A1.T" est la formule qui "croise" l'erreur de sortie avec le signal d'entrée.
+            On divise par "m" pour faire la moyenne.
+
+        Remonter à la couoche cachée (couche 1) : 
+
+            "dA1 = W2.T @ dZ2" : 
+            C'est l'équivalent de : "dA1 = erreur_transmise_à_la_couche_1".
+            C'est le "rapport de blâme transmis". On a fini "l'enquête" de la couche 2. On remonte la chaîne.
+            On prend l'erreur dZ2 t on la fait passer à l'envers à travers le "plan" de W2 (en utilisant sa transposée W2.T).
+            On obtient dA1, qui est le "blâme" tel qu'il arrive à la sortie de la couche 1.
+
+            "dZ1 = dA1 * (Z1 > 0) : 
+            C'est l'équivalent de : dZ1 = erreur_brute_couche_1 (après "l'interrupteur" ReLu)
+            On fait passer le blâme à travers "l'interrupteur ReLu".
+            C'est la dérivée de ReLu. On regarde les "archives" Z1 (Le signal avant ReLU).
+            "Z1 > 0" est une "carte" qui vaut 1 là ou l'interrupteur étati "On" (positif) et 0 là où il était "Off" (négatif)
+            "dA1 * ..." On multiplie le blâme dA1 par cette carte.
+            Résultat : Si l'interrupteur était "Off" (0), le blâme est bloqué (dA1 * 0 = 0). S'il était "On" (1), le blâme passe (dA1 * 1 = dA1).
+
+            "db1 = np.sum(dZ1, axis=1, keepdims=True) / m" : 
+            C'est l'équivalent de : "db1 = rapport_responsabilite_du_biais_b1".
+            C'est identique à db2. On blâme "lA Priori" de la couche 1.
+            On fait la moyenne de l'erreur dZ1 horizontalement (axis=1) pour chacun des 10 neurones.
+
+            "dW1 = dZ1 @ X.T / m" : 
+            On blâme W1.
+            C'est identique à dW2. On croise l'erreur de la couche "dZ1" avec la "Matière première" (X) qui est entrée dans la "machine" à l'origine.
+
+            "return dW1, db1, dW2, db2" :
+            C'est l'équivalent de "return rapports_de_responsabilité".
+            "L'enquête" est terminée. On dépose le rapport final, qui contient les "ordres de correction" (d)
+            pour chaqye "machine" et "biais".
+
+
+    6:
+        à ajouter
     '''
 
 
@@ -272,6 +363,7 @@ def backward_prop():
         https://www.geeksforgeeks.org/deep-learning/categorical-cross-entropy-in-multi-class-classification/
         http://neuralnetworksanddeeplearning.com/index.html
         https://www.ibm.com/think/topics/backpropagation#:~:text=Backpropagation%20is%20a%20machine%20learning,(AI)%20%E2%80%9Clearn.%E2%80%9D
+        https://www.geeksforgeeks.org/deep-learning/relu-activation-function-in-deep-learning/
         Gemini AI pour les analogies utilisées dans les explications. (Elles me sont utiles pour une meilleure compréhension.)
     """
 
