@@ -30,10 +30,10 @@ X_train = data_train[:4, :]
 def Init_params():
 
     W1 = np.random.randn(10, 4) * 0.01  
-    b1 = np.zeros(10, 1)
+    b1 = np.zeros((10, 1))
    
     W2 = np.random.randn(3, 10) * 0.01
-    b2 = np.zeros(3,1)
+    b2 = np.zeros((3,1))
     return W1, b1, W2, b2
 
 
@@ -64,6 +64,7 @@ def forward_prop(X, W1, b1, W2, b2):
    
 #Fonction de coût (index 4) (Loss function)
 def one_hot(Y): #Categorical Cross-Entropy (toujours utilisé avec Softmax ? ) 
+    Y = Y.astype(int)
 
     m = Y.size
     columns_index = np.arange(m)
@@ -108,13 +109,83 @@ def update_parameters(dW1, db1, dW2, db2, W1, b1, W2, b2, learning_rate):
 
     return updateW1, updateW2, updateb1, updateb2
 
+#Assemblage (Index 7)
+def gradient_descent(X, Y, learning_rate, iterations):
+    
+    #On initialise
+    W1, b1, W2, b2 = Init_params()
+    
+    #On prépare le "corrigé" Y
+    Y_one_hot = one_hot(Y)
 
-def gradient_descent():
+    #Mise en place de la boucle
+    for i in range(iterations):
+        
+        #1- Forward : On lance la première étape et on récupère les résultats
+        A1, A2, Z1, Z2 = forward_prop(X, W1, b1, W2, b2)
+        
+        #2- Backward : On trouve les "coupables" (gradients)
+        dW1, db1, dW2, db2 = backward_prop(A1, A2, Y_one_hot, W1, W2, b1, b2, Z1, X)
+        
+        #3- Update : On corrige les erreurs
+        W1, W2, b1, b2 = update_parameters(dW1, db1, dW2, db2, W1, b1, W2, b2, learning_rate)
+        
+        #4- Affichage : Tous les 100 tours on regarde le socre.
+        if i % 100 == 0:
+            loss = compute_loss(Y_one_hot, A2)
+            print(f"Iteration {i} : Loss = {loss}")
 
+   
+    return W1, b1, W2, b2
+
+#Connaître la précision du model
+def get_predictions(A2):
+    # On transforme les probas [0.1, 0.8, 0.1] en décision [1]
+    return np.argmax(A2, axis=0)
+
+def get_accuracy(predictions, Y):
+    # On compare la décision avec la réalité et fait la moyenne
+    print(predictions, Y)#nb: Optionnel : pour voir les devinettes vs réalité
+    return np.sum(predictions == Y) / Y.size
+
+print("Début de l'entraînement...")
+
+W1, b1, W2, b2 = gradient_descent(X_train, Y_train, learning_rate=0.1, iterations=1000)
+
+print("Fin de l'entraînement !")
+
+
+# 1- Prédiction finale avec les machines entraînées (W1, b1...)
+Z1, A1, Z2, A2 = forward_prop(X_train, W1, b1, W2, b2)
+
+# 2- Traduction des probas en classes (0, 1 ou 2)
+predictions = get_predictions(A2)
+
+# 3. Calcule de la note finale
+accuracy = get_accuracy(predictions, Y_train)
+print(f"Précision de l'entraînement : {accuracy * 100}%")
+
+print("Test sur des données inconnues...")
+
+#1- On utilise X_dev ici pour passer le "vrai" examen
+#nb: O,n utilise les W et b qu'on vient d'entraîner
+Z1_dev, A1_dev, Z2_dev, A2_dev = forward_prop(X_dev, W1, b1, W2, b2)
+
+#2- On récupère les réponses
+dev_prediction = get_predictions(A2_dev)
+
+#On compare avec le "corrigé"
+dev_accuracy = get_accuracy(dev_prediction, Y_dev)
+
+print(f"Précision sur le jeu de test : {dev_accuracy * 100}%")
+
+
+
+#Prochain objectif : adapter et améliorer ce réseau de neurones pour le faire fonctionner avec le "Pima Indians Diabetes Dataset"
 
     ### INDEX ###
 
-    '''
+'''
     1:
         #(W1 @ X_train) cf. allusion diagnostiqueur : 
         10 diagnostiqueurs dans une pièce qui se disent :
@@ -341,15 +412,66 @@ def gradient_descent():
 
 
     6:
-        à ajouter
-    '''
+        Analogie : Un randonneur dans le Brouillard :
+
+            On est perdu sur une montagne en pleine nuit. Notre altitude corespond à "L'erreur" (Loss), plus nous sommes haut, plus l'erreur est grande.
+            Notre but est de descendre tout en bas, dans la vallée (là ou l'erreur est proche de 0).
+            Notre position : Ce sont nos paramètres actuels (W1, b1...). On ne vois pas la vallée, on ne peux que regarder sous nos pieds.
+
+        1: Le gradient (dW, db) = La pente :
+
+            L'étape précédente (backward_prop) a calculé dW et db. Mathématiquement, le gradient indique la direction de la montée la plus rapide.
+            Il nous dit: "Si tu vas par là, tu vas monter très vite".
+
+        2: Le signe "-" = La direction : 
+
+            Puisque le gradient indique la montée, et qu'on veut descendre (réduire l'erreur), on doit aller dans le sens opposé.
+            C'est pour cela qu'on fait une soustraction (W - ...)
+
+        3: Le learning Rate = La taille du pas : 
+
+            C'est la longueur de la jambe du randonneur. 
+            Si le pas est trop grand : On risque de "sauter" par-dessus la valée et d'atterir sur la montagne d'en face. (l'erreur augmente).
+
+            Si le pas est trop petit : On va mettre des années à descendre (l'apprentissage est trop lent.)
+            
+        Explication Technique : 
+
+            "updateW1 = W1 - (learning_rate * dW1)" :
+            "dW1" : C'est le "rapport de responsabilité".
+                Si dW1 est grand (ex:5.0), cela veut dire que ce poids a une énorme influence sur l'erruer. Il faut le changer beaucoup.
+                
+                Si dW1 est petit (ex:0.001), ce poids est presque parfait, on n'y touche pas.
+
+            "learningèrate * dW1" : 
+            C'est la correction réelle. On prend l'avis du gradient (dW1) mais on le "calme" un peu en le multipliant par un petit chiffre (ex:0.01)
+            pour ne pas casser la machine en changeant les réglages trop brutalement.
+
+            "W1 - ..." : 
+            C'est la mise à jour. On prend l'ancien réglage et on applique la correction.
+
+        Pour résumer cette fonction applique la règle de l'apprentissage : "Regarde où est l'erreur, et fait un petit pas dans la direction opposée".
+        Répété 1000, 10 000 fois permet au réseau de trouver la solution parfaite.
+
+    7:
+        Analogie "Le cycle d'apprentissage"
+        On imagine un élève (le réseau) qui révise pour un examen : 
+        - Il a des conaissances de bases floues (Initialisation)
+        - Il passe un examen blanc (Forward)
+        - Il compare ses réponses au corrigé pour voir ses erreurs (Loss)
+        - Il analyse ses erreurs pour comprendre ce qu'il a mal compris (Backward)
+        - Il met à jour ses erreurs pour comprendre ce qu'il a mal compris (Update)
+        - Il recommence 1000 fois (Boucle)
+
+        
+'''
 
 
 
     
     ### Sources ###
 
-    """
+"""
         https://youtu.be/w8yWXqWQYmU
         https://www.digitalocean.com/community/tutorials/relu-function-in-python
         https://numpy.org/devdocs/index.html
@@ -365,6 +487,6 @@ def gradient_descent():
         https://www.ibm.com/think/topics/backpropagation#:~:text=Backpropagation%20is%20a%20machine%20learning,(AI)%20%E2%80%9Clearn.%E2%80%9D
         https://www.geeksforgeeks.org/deep-learning/relu-activation-function-in-deep-learning/
         Gemini AI pour les analogies utilisées dans les explications. (Elles me sont utiles pour une meilleure compréhension.)
-    """
+"""
 
 
