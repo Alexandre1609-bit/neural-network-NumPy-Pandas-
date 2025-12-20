@@ -42,8 +42,9 @@ Structure du Code
 
 Installation et Utilisation
 
+```bash
 Cloner le projet :
-  Bashgit clone [(https://github.com/Alexandre1609-bit/neural-network-NumPy-Pandas-)]
+  Bashgit clone https://github.com/Alexandre1609-bit/neural-network-NumPy-Pandas-
   
 Installer les dépendances :
 
@@ -51,7 +52,7 @@ Installer les dépendances :
   
 Lancer l'entraînement :
   Bashpython NN.py
-
+```
   
 Résultats
 
