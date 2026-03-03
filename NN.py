@@ -4,7 +4,7 @@ from matplotlib import pyplot as plt
 
 
 #Import et nettoyage du DataSet 
-data = pd.read_csv(r"ds\Iris.csv")
+data = pd.read_csv(r"ds/Iris.csv")
 
 data.drop(['Id'], axis='columns',inplace=True)
 species_dic = {"Iris-setosa": 0, "Iris-versicolor": 1, "Iris-virginica": 2}
@@ -118,6 +118,8 @@ def gradient_descent(X, Y, learning_rate, iterations):
     #On prépare le "corrigé" Y
     Y_one_hot = one_hot(Y)
 
+    history_loss = []
+
     #Mise en place de la boucle
     for i in range(iterations):
         
@@ -133,10 +135,11 @@ def gradient_descent(X, Y, learning_rate, iterations):
         #4- Affichage : Tous les 100 tours on regarde le socre.
         if i % 100 == 0:
             loss = compute_loss(Y_one_hot, A2)
+            history_loss.append(loss)
             print(f"Iteration {i} : Loss = {loss}")
 
    
-    return W1, b1, W2, b2
+    return W1, b1, W2, b2, history_loss
 
 #Connaître la précision du model
 def get_predictions(A2):
@@ -150,7 +153,7 @@ def get_accuracy(predictions, Y):
 
 print("Début de l'entraînement...")
 
-W1, b1, W2, b2 = gradient_descent(X_train, Y_train, learning_rate=0.1, iterations=1000)
+W1, b1, W2, b2, history_loss = gradient_descent(X_train, Y_train, learning_rate=0.1, iterations=1000)
 
 print("Fin de l'entraînement !")
 
@@ -179,6 +182,12 @@ dev_accuracy = get_accuracy(dev_prediction, Y_dev)
 
 print(f"Précision sur le jeu de test : {dev_accuracy * 100}%")
 
+plt.plot(history_loss)
+plt.title("Évolution de l'erreur (Loss) pendant l'entraînement")
+plt.xlabel("Centaines d'itérations")
+plt.ylabel("Erreur")
+plt.savefig("courbe_apprentissage.png")
+print("Graphique sauvegardé sous le nom 'courbe_apprentissage.png'")
 
 
 #Prochain objectif : adapter et améliorer ce réseau de neurones pour le faire fonctionner avec le "Pima Indians Diabetes Dataset"
