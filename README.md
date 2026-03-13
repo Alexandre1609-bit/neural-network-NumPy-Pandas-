@@ -56,7 +56,7 @@ Lancer l'entraînement :
   
 Résultats
 
-Le modèle atteint une précision remarquable après 1000 itérations :
+Le modèle atteint une précision attendu pour ce dataset, après 1000 itérations :
   Précision Entraînement : ~98% - 100%
   Précision Test (Généralisation) : ~96% - 98%
   Loss final : < 0.1
